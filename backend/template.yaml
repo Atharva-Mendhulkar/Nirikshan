@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Nirikshan hackathon sync API
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 10
+    MemorySize: 256
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        EVENTS_TABLE: !Ref AuthEventsTable
+
+Resources:
+  SyncApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+
+  SyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handler.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AuthEventsTable
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SyncApi
+            Path: /health
+            Method: GET
+        SyncEvents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SyncApi
+            Path: /sync/events
+            Method: POST
+
+  AuthEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: event_id
+          AttributeType: S
+        - AttributeName: device_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: event_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: device-timestamp-index
+          KeySchema:
+            - AttributeName: device_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+Outputs:
+  SyncApiUrl:
+    Description: Base URL for the mobile SYNC_API_BASE_URL config
+    Value: !Sub 'https://${SyncApi}.execute-api.${AWS::Region}.amazonaws.com'

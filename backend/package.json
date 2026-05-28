@@ -1,0 +1,16 @@
+{
+  "name": "nirikshan-sync-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/local-server.mjs",
+    "test": "node --test",
+    "package": "sam build",
+    "deploy:guided": "sam deploy --guided"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.835.0"
+  },
+  "devDependencies": {}
+}
