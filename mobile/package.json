@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "env ANDROID_HOME=\"$HOME/Library/Android/sdk\" ANDROID_SDK_ROOT=\"$HOME/Library/Android/sdk\" JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\" PATH=\"$HOME/Library/Android/sdk/platform-tools:$HOME/Library/Android/sdk/emulator:$PATH\" react-native run-android",
+    "android": "node scripts/run-android-local.mjs",
     "android:build": "env ANDROID_HOME=\"$HOME/Library/Android/sdk\" ANDROID_SDK_ROOT=\"$HOME/Library/Android/sdk\" JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\" PATH=\"$HOME/Library/Android/sdk/platform-tools:$HOME/Library/Android/sdk/emulator:$PATH\" sh -c 'cd android && ./gradlew :app:assembleDebug'",
     "ios": "react-native run-ios",
     "lint": "eslint .",

@@ -38,8 +38,10 @@ export function FaceAuthCamera({ active }: Props) {
   if (!hasPermission) {
     return (
       <View style={styles.fallback}>
-        <Text style={styles.fallbackTitle}>Camera permission: {status}</Text>
+        <Text style={styles.fallbackTitle}>Camera permission</Text>
+        <Text style={styles.fallbackText}>{status}</Text>
         <Pressable
+          accessibilityRole="button"
           onPress={() => {
             if (canRequestPermission) {
               requestPermission().catch(() => undefined);
@@ -68,13 +70,18 @@ export function FaceAuthCamera({ active }: Props) {
   }
 
   return (
-    <Camera
-      device={device}
-      isActive={active}
-      mirrorMode="auto"
-      outputs={[frameOutput]}
-      style={StyleSheet.absoluteFill}
-    />
+    <View style={StyleSheet.absoluteFill}>
+      <Camera
+        device={device}
+        isActive={active}
+        mirrorMode="auto"
+        outputs={[frameOutput]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View pointerEvents="none" style={styles.guideLayer}>
+        <View style={styles.faceGuide} />
+      </View>
+    </View>
   );
 }
 
@@ -83,24 +90,49 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0b1117',
+    backgroundColor: '#212121',
     padding: 16,
     gap: 14,
   },
   fallbackTitle: {
-    color: '#f5f7fb',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  fallbackText: {
+    color: '#DDD',
+    fontSize: 13,
     fontWeight: '700',
   },
   permissionButton: {
-    borderColor: '#dfe7ef',
+    backgroundColor: '#fff',
+    borderColor: '#DDD',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 46,
+    justifyContent: 'center',
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
   permissionButtonText: {
-    color: '#f5f7fb',
+    color: '#392095',
     fontWeight: '800',
+  },
+  guideLayer: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  faceGuide: {
+    width: '52%',
+    aspectRatio: 0.72,
+    borderColor: 'rgba(255, 255, 255, 0.82)',
+    borderRadius: 120,
+    borderWidth: 2,
   },
   pressed: {
     opacity: 0.72,

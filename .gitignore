@@ -1,2 +1,11 @@
 research.md*
 .idea/
+reports/
+data/raw/
+data/private/
+models/raw/
+models/converted/
+.venv-models/
+calibration_image_sample_data_*_float32.npy
+__pycache__/
+*.pyc

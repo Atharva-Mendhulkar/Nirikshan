@@ -11,18 +11,18 @@ export const REQUIRED_MODELS = [
     id: 'detector',
     label: 'Face detector',
     fileName: 'yunet_detector.tflite',
-    expectedInput: '320x320 RGB',
+    expectedInput: 'YuNet source ONNX: 1x3x640x640, outputs bbox + 5 landmarks',
   },
   {
     id: 'liveness',
     label: 'Liveness',
     fileName: 'minifasnet_v2.tflite',
-    expectedInput: '80x80 or validated model shape',
+    expectedInput: 'MiniFASNetV2 source ONNX: batch x 3 x 80 x 80, 3 classes',
   },
   {
     id: 'recognition',
     label: 'Recognition',
     fileName: 'mobilefacenet_arcface.tflite',
-    expectedInput: '112x112 aligned RGB',
+    expectedInput: 'buffalo_s MBF source ONNX: batch x 3 x 112 x 112, 512-d embedding',
   },
 ] as const;

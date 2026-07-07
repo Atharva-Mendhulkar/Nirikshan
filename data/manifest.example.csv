@@ -1,0 +1,13 @@
+sample_id,user_id,path,label,attack_type,condition,split,detection_success,landmark_success,liveness_score,embedding_generated,best_match_user,best_match_score,detection_latency_ms,liveness_latency_ms,recognition_latency_ms,total_latency_ms
+s001,u001,data/raw/u001/real_001.jpg,real,none,indoor,dev,true,true,0.96,true,u001,0.88,7,18,22,67
+s002,u001,data/raw/u001/real_002.jpg,real,none,low_light,dev,true,true,0.82,true,u001,0.79,8,19,23,72
+s003,u002,data/raw/u002/real_001.jpg,real,none,outdoor,dev,true,true,0.94,true,u002,0.86,6,18,21,63
+s004,u002,data/raw/u002/real_002.jpg,real,none,indoor,dev,true,true,0.89,true,u001,0.68,7,18,22,68
+s005,u001,data/raw/u001/print_001.jpg,spoof,print,indoor,dev,true,true,0.21,false,,0.00,7,18,0,34
+s006,u002,data/raw/u002/screen_001.jpg,spoof,screen,indoor,dev,true,true,0.34,true,u002,0.77,7,19,22,70
+s101,u001,data/raw/u001/real_101.jpg,real,none,indoor,test,true,true,0.95,true,u001,0.87,7,18,22,67
+s102,u001,data/raw/u001/real_102.jpg,real,none,outdoor,test,true,true,0.84,true,u001,0.78,8,20,23,75
+s103,u002,data/raw/u002/real_101.jpg,real,none,low_light,test,true,true,0.79,true,u002,0.76,8,20,24,78
+s104,u003,data/raw/u003/real_101.jpg,real,none,indoor,test,true,true,0.92,true,u002,0.71,7,18,22,69
+s105,u001,data/raw/u001/print_101.jpg,spoof,print,indoor,test,true,true,0.18,false,,0.00,7,18,0,34
+s106,u002,data/raw/u002/screen_101.jpg,spoof,screen,indoor,test,true,true,0.29,true,u002,0.74,7,19,22,70

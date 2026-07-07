@@ -2,6 +2,8 @@ import React, { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   AppState,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
@@ -17,11 +19,15 @@ import {
 import { FaceAuthCamera } from './src/components/FaceAuthCamera';
 import { MODEL_MODE, REQUIRED_MODELS } from './src/config/runtime';
 import { useNirikshanController } from './src/hooks/useNirikshanController';
+import type { RecentAuthEvent } from './src/ml/types';
+
+type Tone = 'primary' | 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+type ActionVariant = 'primary' | 'secondary' | 'danger' | 'quiet';
 
 function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor="#101820" />
+      <StatusBar barStyle="dark-content" backgroundColor={palette.gray50} />
       <AppContent />
     </SafeAreaProvider>
   );
@@ -29,6 +35,7 @@ function App() {
 
 function AppContent() {
   const controller = useNirikshanController();
+  const statusTone = getStatusTone(controller.status);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
@@ -49,157 +56,194 @@ function AppContent() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Nirikshan</Text>
-          <Text style={styles.subtitle}>
-            Offline face authentication, Android MVP
-          </Text>
-        </View>
-
-        <View style={styles.cameraPanel}>
-          <FaceAuthCamera
-            active={controller.cameraActive}
-            onPipelineResult={controller.handlePipelineResult}
-          />
-          <View style={styles.telemetryBar}>
-            <Text style={styles.telemetryText}>
-              {controller.telemetryLabel}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.modeRow}>
-          <SegmentButton
-            active={controller.mode === 'authenticate'}
-            label="Authenticate"
-            onPress={() => controller.setMode('authenticate')}
-          />
-          <SegmentButton
-            active={controller.mode === 'enroll'}
-            label="Enroll"
-            onPress={() => controller.setMode('enroll')}
-          />
-        </View>
-
-        {controller.mode === 'enroll' ? (
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Enrollment</Text>
-            <TextInput
-              autoCapitalize="words"
-              onChangeText={controller.setEnrollmentName}
-              placeholder="Name"
-              placeholderTextColor="#6b7280"
-              style={styles.input}
-              value={controller.enrollmentName}
-            />
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${controller.enrollmentProgress * 100}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.muted}>
-              {controller.enrollmentSamples.length}/5 valid samples
-            </Text>
-            <Pressable
-              disabled={controller.busy}
-              onPress={controller.captureEnrollmentSample}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.pressed,
-                controller.busy && styles.disabled,
-              ]}>
-              <Text style={styles.primaryButtonText}>Capture Sample</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Authentication</Text>
-            <View style={styles.actionGrid}>
-              <Pressable
-                disabled={controller.busy}
-                onPress={controller.simulateGenuineAuth}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  pressed && styles.pressed,
-                ]}>
-                <Text style={styles.actionButtonText}>Real Face</Text>
-              </Pressable>
-              <Pressable
-                disabled={controller.busy}
-                onPress={controller.simulateWrongPerson}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  pressed && styles.pressed,
-                ]}>
-                <Text style={styles.actionButtonText}>Wrong Person</Text>
-              </Pressable>
-              <Pressable
-                disabled={controller.busy}
-                onPress={controller.simulateSpoof}
-                style={({ pressed }) => [
-                  styles.destructiveButton,
-                  pressed && styles.pressed,
-                ]}>
-                <Text style={styles.destructiveButtonText}>Spoof</Text>
-              </Pressable>
-              <Pressable
-                disabled={controller.busy}
-                onPress={handleSync}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  pressed && styles.pressed,
-                ]}>
-                <Text style={styles.secondaryButtonText}>Sync</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.statusPanel}>
-          <View>
-            <Text style={styles.statusLabel}>Status</Text>
-            <Text style={styles.statusText}>{controller.status}</Text>
-          </View>
-          {controller.busy ? <ActivityIndicator color="#f5f7fb" /> : null}
-        </View>
-
-        <View style={styles.grid}>
-          <Metric label="Users" value={String(controller.users.length)} />
-          <Metric label="Queued" value={String(controller.pendingEvents)} />
-          <Metric label="Mode" value={MODEL_MODE} />
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Model Gate</Text>
-          {REQUIRED_MODELS.map(model => (
-            <View key={model.id} style={styles.modelRow}>
-              <Text style={styles.modelName}>{model.label}</Text>
-              <Text style={styles.modelStatus}>{model.fileName}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Recent Events</Text>
-          {controller.recentEvents.length === 0 ? (
-            <Text style={styles.muted}>No events yet</Text>
-          ) : (
-            controller.recentEvents.map(event => (
-              <View key={event.id} style={styles.eventRow}>
-                <Text style={styles.eventResult}>{event.result}</Text>
-                <Text style={styles.eventMeta}>
-                  {event.userName ?? 'unknown'} |{' '}
-                  {new Date(event.timestamp).toLocaleTimeString()}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardRoot}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled">
+          <View style={styles.serviceHeader}>
+            <View style={styles.serviceHeaderTop}>
+              <View style={styles.brandBlock}>
+                <Text style={styles.kicker}>Offline Identity Service</Text>
+                <Text
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  style={styles.title}>
+                  Nirikshan
                 </Text>
               </View>
-            ))
+              <ToneBadge label="Offline ready" tone="success" />
+            </View>
+            <View style={styles.serviceMetaRow}>
+              <ToneBadge label={`Mode ${MODEL_MODE}`} tone="info" />
+              <ToneBadge
+                label={`${controller.users.length} enrolled`}
+                tone="neutral"
+              />
+              <ToneBadge
+                label={`${controller.pendingEvents} queued`}
+                tone={controller.pendingEvents > 0 ? 'warning' : 'neutral'}
+              />
+            </View>
+          </View>
+
+          <View style={styles.cameraPanel}>
+            <FaceAuthCamera
+              active={controller.cameraActive}
+              onPipelineResult={controller.handlePipelineResult}
+            />
+            <View style={styles.cameraTopBar}>
+              <Text style={styles.cameraLabel}>Front camera</Text>
+              <View style={styles.liveDot} />
+            </View>
+            <View style={styles.telemetryBar}>
+              <Text numberOfLines={2} style={styles.telemetryText}>
+                {controller.telemetryLabel}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            accessibilityRole="tablist"
+            style={styles.segmentedControl}>
+            <SegmentButton
+              active={controller.mode === 'authenticate'}
+              label="Authenticate"
+              onPress={() => controller.setMode('authenticate')}
+            />
+            <SegmentButton
+              active={controller.mode === 'enroll'}
+              label="Enroll"
+              onPress={() => controller.setMode('enroll')}
+            />
+          </View>
+
+          <StatusCard
+            busy={controller.busy}
+            status={controller.status}
+            tone={statusTone}
+          />
+
+          {controller.mode === 'enroll' ? (
+            <Section
+              action={
+                <Text style={styles.sectionMeta}>
+                  {controller.enrollmentSamples.length}/5
+                </Text>
+              }
+              eyebrow="Enrollment"
+              title="Register a person">
+              <TextInput
+                accessibilityLabel="Enrollment name"
+                autoCapitalize="words"
+                onChangeText={controller.setEnrollmentName}
+                placeholder="Full name"
+                placeholderTextColor={palette.gray500}
+                style={styles.input}
+                value={controller.enrollmentName}
+              />
+              <ProgressDots
+                count={5}
+                value={controller.enrollmentSamples.length}
+              />
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${controller.enrollmentProgress * 100}%` },
+                  ]}
+                />
+              </View>
+              <PrimaryAction
+                disabled={controller.busy}
+                label="Capture sample"
+                onPress={controller.captureEnrollmentSample}
+                variant="primary"
+              />
+            </Section>
+          ) : (
+            <Section eyebrow="Authentication" title="Verify identity">
+              <View style={styles.actionGrid}>
+                <PrimaryAction
+                  disabled={controller.busy}
+                  label="Real face"
+                  onPress={controller.simulateGenuineAuth}
+                  variant="primary"
+                />
+                <PrimaryAction
+                  disabled={controller.busy}
+                  label="Wrong person"
+                  onPress={controller.simulateWrongPerson}
+                  variant="secondary"
+                />
+                <PrimaryAction
+                  disabled={controller.busy}
+                  label="Spoof"
+                  onPress={controller.simulateSpoof}
+                  variant="danger"
+                />
+                <PrimaryAction
+                  disabled={controller.busy}
+                  label="Sync queue"
+                  onPress={handleSync}
+                  variant="quiet"
+                />
+              </View>
+            </Section>
           )}
-        </View>
-      </ScrollView>
+
+          <View style={styles.statsGrid}>
+            <Metric
+              label="Users"
+              tone="primary"
+              value={String(controller.users.length)}
+            />
+            <Metric
+              label="Queued"
+              tone={controller.pendingEvents > 0 ? 'warning' : 'success'}
+              value={String(controller.pendingEvents)}
+            />
+            <Metric label="Runtime" tone="info" value={MODEL_MODE} />
+          </View>
+
+          <Section eyebrow="Assets" title="Model readiness">
+            <View style={styles.modelList}>
+              {REQUIRED_MODELS.map(model => (
+                <View key={model.id} style={styles.modelRow}>
+                  <View style={styles.modelIcon}>
+                    <Text style={styles.modelIconText}>OK</Text>
+                  </View>
+                  <View style={styles.modelCopy}>
+                    <Text numberOfLines={1} style={styles.modelName}>
+                      {model.label}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.modelStatus}>
+                      {model.fileName}
+                    </Text>
+                  </View>
+                  <ToneBadge label="Ready" tone="success" />
+                </View>
+              ))}
+            </View>
+          </Section>
+
+          <Section
+            action={<ToneBadge label="Latest 8" tone="neutral" />}
+            eyebrow="Audit"
+            title="Recent events">
+            {controller.recentEvents.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <View style={styles.eventList}>
+                {controller.recentEvents.map(event => (
+                  <EventRow event={event} key={event.id} />
+                ))}
+              </View>
+            )}
+          </Section>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -215,6 +259,8 @@ function SegmentButton({
 }) {
   return (
     <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.segmentButton,
@@ -222,6 +268,7 @@ function SegmentButton({
         pressed && styles.pressed,
       ]}>
       <Text
+        numberOfLines={1}
         style={[
           styles.segmentButtonText,
           active && styles.segmentButtonTextActive,
@@ -232,130 +279,566 @@ function SegmentButton({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Section({
+  action,
+  children,
+  eyebrow,
+  title,
+}: {
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  eyebrow: string;
+  title: string;
+}) {
   return (
-    <View style={styles.metric}>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleBlock}>
+          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+          <Text numberOfLines={2} style={styles.sectionTitle}>
+            {title}
+          </Text>
+        </View>
+        {action == null ? null : <View>{action}</View>}
+      </View>
+      {children}
     </View>
   );
 }
 
+function PrimaryAction({
+  disabled,
+  label,
+  onPress,
+  variant,
+}: {
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+  variant: ActionVariant;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled === true }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        actionButtonStyle[variant],
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}>
+      <Text
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={[styles.actionButtonText, actionTextStyle[variant]]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function StatusCard({
+  busy,
+  status,
+  tone,
+}: {
+  busy: boolean;
+  status: string;
+  tone: Tone;
+}) {
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.statusCard,
+        {
+          backgroundColor: toneStyle[tone].soft,
+          borderColor: toneStyle[tone].border,
+        },
+      ]}>
+      <View style={styles.statusContent}>
+        <Text style={[styles.statusLabel, { color: toneStyle[tone].text }]}>
+          Status
+        </Text>
+        <Text style={styles.statusText}>{status}</Text>
+      </View>
+      {busy ? (
+        <ActivityIndicator color={toneStyle[tone].text} />
+      ) : (
+        <View
+          style={[styles.statusMarker, { backgroundColor: toneStyle[tone].text }]}
+        />
+      )}
+    </View>
+  );
+}
+
+function Metric({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone: Tone;
+  value: string;
+}) {
+  return (
+    <View style={[styles.metric, { borderColor: toneStyle[tone].border }]}>
+      <Text
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={[styles.metricValue, { color: toneStyle[tone].text }]}>
+        {value}
+      </Text>
+      <Text numberOfLines={1} style={styles.metricLabel}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function ToneBadge({ label, tone }: { label: string; tone: Tone }) {
+  return (
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: toneStyle[tone].soft,
+          borderColor: toneStyle[tone].border,
+        },
+      ]}>
+      <Text
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={[styles.badgeText, { color: toneStyle[tone].text }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function ProgressDots({ count, value }: { count: number; value: number }) {
+  return (
+    <View style={styles.progressDots}>
+      {Array.from({ length: count }, (_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.progressDot,
+            index < value && styles.progressDotActive,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function EmptyState() {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyTitle}>No events yet</Text>
+      <Text style={styles.emptyText}>Awaiting first audit record.</Text>
+    </View>
+  );
+}
+
+function EventRow({ event }: { event: RecentAuthEvent }) {
+  const tone = eventTone(event.result);
+  return (
+    <View style={styles.eventRow}>
+      <View style={styles.eventMain}>
+        <ToneBadge label={formatEventResult(event.result)} tone={tone} />
+        <Text numberOfLines={1} style={styles.eventName}>
+          {event.userName ?? 'Unknown user'}
+        </Text>
+      </View>
+      <View style={styles.eventMetaRow}>
+        <Text numberOfLines={1} style={styles.eventMeta}>
+          {formatTime(event.timestamp)}
+        </Text>
+        <Text style={styles.eventSeparator}>|</Text>
+        <Text numberOfLines={1} style={styles.eventMeta}>
+          {event.synced ? 'Synced' : 'Queued'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function getStatusTone(status: string): Tone {
+  const normalized = status.toLowerCase();
+  if (normalized.includes('spoof') || normalized.includes('failed')) {
+    return 'danger';
+  }
+  if (normalized.includes('reject') || normalized.includes('offline')) {
+    return 'warning';
+  }
+  if (
+    normalized.includes('authenticated') ||
+    normalized.includes('enrolled') ||
+    normalized.includes('synced') ||
+    normalized === 'ready'
+  ) {
+    return 'success';
+  }
+  return 'primary';
+}
+
+function eventTone(result: RecentAuthEvent['result']): Tone {
+  if (result === 'authenticated' || result === 'enrolled') {
+    return 'success';
+  }
+  if (result === 'spoof') {
+    return 'danger';
+  }
+  return 'warning';
+}
+
+function formatEventResult(result: RecentAuthEvent['result']) {
+  switch (result) {
+    case 'authenticated':
+      return 'Authenticated';
+    case 'enrolled':
+      return 'Enrolled';
+    case 'spoof':
+      return 'Spoof';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return result;
+  }
+}
+
+function formatTime(timestamp: number) {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+const palette = {
+  primary900: '#392095',
+  primary800: '#4A2BC2',
+  primary: '#613AF5',
+  primary600: '#774BFF',
+  primary50: '#FAEFFF',
+  success: '#3C9718',
+  success50: '#ECF7E8',
+  info: '#007DBA',
+  info50: '#E6F6FF',
+  warning: '#B77224',
+  warning50: '#FFF4E8',
+  danger: '#B7131A',
+  danger50: '#FDECEC',
+  white: '#FFFFFF',
+  page: '#F3F3F3',
+  gray50: '#F8F9FA',
+  gray100: '#E9ECEF',
+  gray200: '#DDD',
+  gray500: '#727272',
+  gray700: '#4B4B4B',
+  dark: '#212121',
+};
+
+const toneStyle: Record<
+  Tone,
+  { border: string; soft: string; text: string }
+> = {
+  primary: {
+    border: '#DAB2FF',
+    soft: palette.primary50,
+    text: palette.primary900,
+  },
+  success: {
+    border: '#BFE4B0',
+    soft: palette.success50,
+    text: '#2F7415',
+  },
+  warning: {
+    border: '#F0D0AD',
+    soft: palette.warning50,
+    text: '#87500F',
+  },
+  danger: {
+    border: '#F0B6BA',
+    soft: palette.danger50,
+    text: palette.danger,
+  },
+  neutral: {
+    border: palette.gray200,
+    soft: palette.gray50,
+    text: palette.gray700,
+  },
+  info: {
+    border: '#B7E4FF',
+    soft: palette.info50,
+    text: '#005F8F',
+  },
+};
+
+const actionButtonStyle: Record<ActionVariant, object> = {
+  primary: {
+    backgroundColor: palette.primary,
+    borderColor: palette.primary,
+  },
+  secondary: {
+    backgroundColor: palette.white,
+    borderColor: palette.primary,
+  },
+  danger: {
+    backgroundColor: palette.danger,
+    borderColor: palette.danger,
+  },
+  quiet: {
+    backgroundColor: palette.white,
+    borderColor: palette.gray200,
+  },
+};
+
+const actionTextStyle: Record<ActionVariant, object> = {
+  primary: {
+    color: palette.white,
+  },
+  secondary: {
+    color: palette.primary900,
+  },
+  danger: {
+    color: palette.white,
+  },
+  quiet: {
+    color: palette.dark,
+  },
+};
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#101820',
+    backgroundColor: palette.page,
+  },
+  keyboardRoot: {
+    flex: 1,
   },
   container: {
-    padding: 16,
     gap: 14,
+    padding: 16,
+    paddingBottom: 28,
   },
-  header: {
-    gap: 4,
+  serviceHeader: {
+    gap: 14,
+    backgroundColor: palette.primary900,
+    borderRadius: 8,
+    padding: 16,
+  },
+  serviceHeaderTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  brandBlock: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  kicker: {
+    color: palette.primary50,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0,
+    textTransform: 'uppercase',
   },
   title: {
-    color: '#f5f7fb',
+    color: palette.white,
     fontSize: 30,
     fontWeight: '800',
+    letterSpacing: 0,
+    lineHeight: 36,
   },
-  subtitle: {
-    color: '#9aa7b2',
-    fontSize: 14,
+  serviceMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   cameraPanel: {
-    height: 320,
-    overflow: 'hidden',
+    backgroundColor: palette.dark,
+    borderColor: palette.gray200,
     borderRadius: 8,
-    backgroundColor: '#17212b',
-    borderColor: '#263443',
     borderWidth: StyleSheet.hairlineWidth,
+    height: 332,
+    overflow: 'hidden',
+  },
+  cameraTopBar: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(33, 33, 33, 0.78)',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 8,
+    left: 12,
+    minHeight: 34,
+    paddingHorizontal: 12,
+    position: 'absolute',
+    top: 12,
+  },
+  cameraLabel: {
+    color: palette.white,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  liveDot: {
+    backgroundColor: palette.success,
+    borderRadius: 5,
+    height: 10,
+    width: 10,
   },
   telemetryBar: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 12,
-    minHeight: 36,
-    justifyContent: 'center',
+    backgroundColor: 'rgba(33, 33, 33, 0.86)',
     borderRadius: 8,
-    backgroundColor: 'rgba(16,24,32,0.86)',
+    bottom: 12,
+    justifyContent: 'center',
+    left: 12,
+    minHeight: 42,
     paddingHorizontal: 12,
+    position: 'absolute',
+    right: 12,
   },
   telemetryText: {
-    color: '#f5f7fb',
+    color: palette.white,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    lineHeight: 17,
   },
-  modeRow: {
-    flexDirection: 'row',
-    padding: 3,
+  segmentedControl: {
+    backgroundColor: palette.white,
+    borderColor: palette.gray200,
     borderRadius: 8,
-    backgroundColor: '#17212b',
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
   },
   segmentButton: {
-    flex: 1,
-    minHeight: 42,
     alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 6,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
   },
   segmentButtonActive: {
-    backgroundColor: '#f5f7fb',
+    backgroundColor: palette.primary,
   },
   segmentButtonText: {
-    color: '#9aa7b2',
-    fontWeight: '700',
+    color: palette.gray700,
+    fontSize: 14,
+    fontWeight: '800',
   },
   segmentButtonTextActive: {
-    color: '#101820',
+    color: palette.white,
   },
-  panel: {
-    gap: 12,
+  statusCard: {
+    alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: '#17212b',
-    borderColor: '#263443',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    minHeight: 82,
     padding: 14,
   },
-  panelTitle: {
-    color: '#f5f7fb',
-    fontSize: 16,
+  statusContent: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+  },
+  statusLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
+  statusText: {
+    color: palette.dark,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  statusMarker: {
+    borderRadius: 7,
+    height: 14,
+    width: 14,
+  },
+  section: {
+    backgroundColor: palette.white,
+    borderColor: palette.gray200,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 14,
+    padding: 14,
+  },
+  sectionHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  sectionTitleBlock: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  sectionEyebrow: {
+    color: palette.primary800,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
+  sectionTitle: {
+    color: palette.dark,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0,
+    lineHeight: 24,
+  },
+  sectionMeta: {
+    color: palette.gray700,
+    fontSize: 14,
     fontWeight: '800',
   },
   input: {
-    minHeight: 46,
+    backgroundColor: palette.white,
+    borderColor: palette.gray200,
     borderRadius: 8,
-    backgroundColor: '#101820',
-    color: '#f5f7fb',
+    borderWidth: 1,
+    color: palette.dark,
+    fontSize: 16,
+    minHeight: 50,
     paddingHorizontal: 12,
-    borderColor: '#263443',
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  progressDots: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  progressDot: {
+    backgroundColor: palette.gray200,
+    borderRadius: 5,
+    flex: 1,
+    height: 10,
+  },
+  progressDotActive: {
+    backgroundColor: palette.success,
   },
   progressTrack: {
-    height: 8,
+    backgroundColor: palette.gray100,
     borderRadius: 4,
-    backgroundColor: '#101820',
+    height: 8,
     overflow: 'hidden',
   },
   progressFill: {
-    height: 8,
+    backgroundColor: palette.success,
     borderRadius: 4,
-    backgroundColor: '#34d399',
-  },
-  muted: {
-    color: '#9aa7b2',
-    fontSize: 13,
-  },
-  primaryButton: {
-    minHeight: 46,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#34d399',
-  },
-  primaryButtonText: {
-    color: '#06130f',
-    fontWeight: '800',
+    height: 8,
   },
   actionGrid: {
     flexDirection: 'row',
@@ -363,118 +846,163 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actionButton: {
-    flexGrow: 1,
-    minWidth: '45%',
-    minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: '#f5f7fb',
+    borderWidth: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: 12,
   },
   actionButtonText: {
-    color: '#101820',
+    fontSize: 14,
     fontWeight: '800',
+    letterSpacing: 0,
   },
-  destructiveButton: {
-    flexGrow: 1,
-    minWidth: '45%',
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#f97373',
-  },
-  destructiveButtonText: {
-    color: '#210b0b',
-    fontWeight: '800',
-  },
-  secondaryButton: {
-    flexGrow: 1,
-    minWidth: '45%',
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    borderColor: '#f5f7fb',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  secondaryButtonText: {
-    color: '#f5f7fb',
-    fontWeight: '800',
-  },
-  statusPanel: {
-    minHeight: 72,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#263443',
-    padding: 14,
-  },
-  statusLabel: {
-    color: '#9aa7b2',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  statusText: {
-    color: '#f5f7fb',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  grid: {
+  statsGrid: {
     flexDirection: 'row',
     gap: 10,
   },
   metric: {
-    flex: 1,
+    backgroundColor: palette.white,
     borderRadius: 8,
-    backgroundColor: '#17212b',
-    borderColor: '#263443',
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 14,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 82,
+    padding: 12,
   },
   metricValue: {
-    color: '#f5f7fb',
     fontSize: 22,
     fontWeight: '800',
+    letterSpacing: 0,
+    lineHeight: 28,
+    textTransform: 'capitalize',
   },
   metricLabel: {
-    color: '#9aa7b2',
+    color: palette.gray500,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  modelList: {
+    gap: 10,
   },
   modelRow: {
+    alignItems: 'center',
+    backgroundColor: palette.gray50,
+    borderColor: palette.gray200,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 64,
+    padding: 10,
+  },
+  modelIcon: {
+    alignItems: 'center',
+    backgroundColor: palette.success50,
+    borderColor: '#BFE4B0',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  modelIconText: {
+    color: '#2F7415',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  modelCopy: {
+    flex: 1,
     gap: 2,
+    minWidth: 0,
   },
   modelName: {
-    color: '#f5f7fb',
-    fontWeight: '700',
-  },
-  modelStatus: {
-    color: '#9aa7b2',
-    fontSize: 12,
-  },
-  eventRow: {
-    gap: 2,
-    borderTopColor: '#263443',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 10,
-  },
-  eventResult: {
-    color: '#f5f7fb',
+    color: palette.dark,
+    fontSize: 14,
     fontWeight: '800',
   },
-  eventMeta: {
-    color: '#9aa7b2',
+  modelStatus: {
+    color: palette.gray500,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  badge: {
+    alignItems: 'center',
+    borderRadius: 50,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 30,
+    paddingHorizontal: 10,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  eventList: {
+    gap: 10,
+  },
+  eventRow: {
+    backgroundColor: palette.gray50,
+    borderColor: palette.gray200,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+    padding: 10,
+  },
+  eventMain: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  eventName: {
+    color: palette.dark,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  eventMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  eventMeta: {
+    color: palette.gray500,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  eventSeparator: {
+    color: palette.gray500,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyState: {
+    backgroundColor: palette.gray50,
+    borderColor: palette.gray200,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 3,
+    padding: 14,
+  },
+  emptyTitle: {
+    color: palette.dark,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  emptyText: {
+    color: palette.gray500,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.72,
   },
   disabled: {
-    opacity: 0.45,
+    opacity: 0.48,
   },
 });
 

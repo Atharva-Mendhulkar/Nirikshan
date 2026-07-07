@@ -12,10 +12,10 @@ export function useRealModelPipeline() {
   const recognition = useTensorflowModel(recognitionSource, []);
 
   const detectorResizer = useResizer({
-    width: 320,
-    height: 320,
-    channelOrder: 'rgb',
-    dataType: 'uint8',
+    width: 640,
+    height: 640,
+    channelOrder: 'bgr',
+    dataType: 'float32',
     scaleMode: 'contain',
     pixelLayout: 'interleaved',
   });
@@ -23,10 +23,10 @@ export function useRealModelPipeline() {
   const livenessResizer = useResizer({
     width: 80,
     height: 80,
-    channelOrder: 'rgb',
+    channelOrder: 'bgr',
     dataType: 'float32',
     scaleMode: 'cover',
-    pixelLayout: 'planar',
+    pixelLayout: 'interleaved',
   });
 
   const recognitionResizer = useResizer({
